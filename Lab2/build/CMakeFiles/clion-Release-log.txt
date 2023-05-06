@@ -1,4 +1,0 @@
-Cannot generate into /home/simom/Documents/Uni/3Ddata/Labs/Lab2/build
-It was created with incompatible generator 'Unix Makefiles'
-
-Please either delete it manually or select another generation directory

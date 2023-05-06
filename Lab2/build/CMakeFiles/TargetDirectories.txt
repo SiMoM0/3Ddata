@@ -1,5 +1,0 @@
-/home/simom/Documents/Uni/3Ddata/Labs/Lab2/build/CMakeFiles/sfm.dir
-/home/simom/Documents/Uni/3Ddata/Labs/Lab2/build/CMakeFiles/matcher.dir
-/home/simom/Documents/Uni/3Ddata/Labs/Lab2/build/CMakeFiles/basic_sfm.dir
-/home/simom/Documents/Uni/3Ddata/Labs/Lab2/build/CMakeFiles/edit_cache.dir
-/home/simom/Documents/Uni/3Ddata/Labs/Lab2/build/CMakeFiles/rebuild_cache.dir

@@ -1,5 +1,11 @@
-# ignore build
-cmake-build-debug/
+# debug
+# cmake-build-debug/
 
-# ignore build
-build/
+# build
+# build/
+
+# vs code settings
+.vscode/
+
+# clion settings
+# .idea/
