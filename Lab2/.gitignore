@@ -1,0 +1,5 @@
+# ignore build
+cmake-build-debug/
+
+# ignore build
+build/

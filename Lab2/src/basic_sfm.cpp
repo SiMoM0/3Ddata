@@ -501,15 +501,37 @@ void BasicSfM::solve()
     // Store the transformation into init_r_mat and  init_t_vec; defined above and set the seed_found flag to true
     // Otherwise, test a different [ref_cam_pose_idx, new_cam_pose_idx] pair (while( !seed_found ) loop)
     // The dummy condition here:
-    if( true ) seed_found = true;
+    // if( true ) seed_found = true;
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
 
+    double threshold = 0.001;
+    cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, 0.999, threshold, inlier_mask_E);
+    cv::Mat H = cv::findHomography(points0, points1, cv::RANSAC, threshold, inlier_mask_H);
+
+    int n_inliers_E = 0;
+    int n_inliers_H = 0;
+    for(int r = 0; r < inlier_mask_E.rows; r++) {
+        if (inlier_mask_E.at<unsigned char>(r))
+            n_inliers_E++;
+    }
+
+    for(int r = 0; r < inlier_mask_H.rows; r++) {
+        if (inlier_mask_H.at<unsigned char>(r))
+            n_inliers_H++;
+    }
+
+    if(n_inliers_E > n_inliers_H) {
+        cv::recoverPose(E, points0, points1, intrinsics_matrix, init_r_mat, init_t_vec, inlier_mask_E);
+    }
+
+    // TODO check sideward motion
+    bool is_sideward = false;
+    if(is_sideward)
+        seed_found = true;
 
 
-
-
-    /////////////////////////////////////////////////////////////////////////////////////////
+      /////////////////////////////////////////////////////////////////////////////////////////
   }
 
   // Initialize the first optimized poses, by integrating them into the registration
@@ -686,7 +708,7 @@ void BasicSfM::solve()
             // pt[2] = /*X coordinate of the estimated point */;
             /////////////////////////////////////////////////////////////////////////////////////////
 
-
+            cv::triangulatePoints(proj_mat0, proj_mat1, points0, points1, hpoints4D);
 
 
 
