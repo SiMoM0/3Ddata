@@ -1,0 +1,4 @@
+# ninja log v5
+1	3329	1683136183690735786	CMakeFiles/sfm.dir/src/io_utils.cpp.o	a44afebc051954cb
+2	2713	1683136183122725537	CMakeFiles/matcher.dir/src/matcher_app.cpp.o	c4a8fd3c2915afb1
+1	3591	1683136183998741344	CMakeFiles/sfm.dir/src/features_matcher.cpp.o	c9ec4bfc91e8dcad
