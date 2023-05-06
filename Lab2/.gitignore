@@ -1,11 +1,11 @@
 # debug
-# cmake-build-debug/
+cmake-build-debug/
 
 # build
-# build/
+build/
 
 # vs code settings
 .vscode/
 
 # clion settings
-# .idea/
+.idea/
