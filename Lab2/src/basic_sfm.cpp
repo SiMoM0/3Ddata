@@ -23,11 +23,37 @@ struct ReprojectionError
   // pay attention to the order of the template parameters
   //////////////////////////////////////////////////////////////////////////////////////////
   
-  
-  
-  
-  
-  
+  ReprojectionError(double observed_x, double observed_y)
+    : observed_x(observed_x), observed_y(observed_y) {}
+
+  template <typename T>
+  bool operator()(const T* const camera,
+                  const T* const point,
+                  T* residuals) const {
+      // camera[0,1,2] are the angle-axis rotation.
+      T p[3];
+      ceres::AngleAxisRotatePoint(camera, point, p);
+      // camera[3,4,5] are the translation.
+      p[0] += camera[3];
+      p[1] += camera[4];
+      p[2] += camera[5];
+
+      T xp = - p[0] / p[2];
+      T yp = - p[1] / p[2];
+
+      residuals[0] = xp - T(observed_x);
+      residuals[1] = yp - T(observed_y);
+      return true;
+  }
+
+  static ceres::CostFunction* Create(const double observed_x,
+                                     const double observed_y) {
+      return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 3, 3>(
+               new ReprojectionError(observed_x, observed_y)));
+  }
+
+  double observed_x;
+  double observed_y;
   
   //////////////////////////////////////////////////////////////////////////////////////////
 };
@@ -521,14 +547,21 @@ void BasicSfM::solve()
             n_inliers_H++;
     }
 
-    if(n_inliers_E > n_inliers_H) {
-        cv::recoverPose(E, points0, points1, intrinsics_matrix, init_r_mat, init_t_vec, inlier_mask_E);
-    }
+    cv::Mat R, t, rvec;
+    if(n_inliers_E < n_inliers_H)
+        continue;
+
+    cv::recoverPose(E, points0, points1, intrinsics_matrix, R, t, inlier_mask_E);
+    cv::Rodrigues(R, rvec);
 
     // TODO check sideward motion
-    bool is_sideward = false;
-    if(is_sideward)
+    double sideward_threshold = 0.6;
+    bool is_sideward = true;
+    if(std::abs(R.at<double>(1, 0)) < std::abs(R.at<double>(0, 0)) && std::abs(R.at<double>(2, 0)) < std::abs(R.at<double>(0, 0))) {
         seed_found = true;
+        R.copyTo(init_r_mat);
+        t.copyTo(init_t_vec);
+    }
 
 
       /////////////////////////////////////////////////////////////////////////////////////////
@@ -708,9 +741,39 @@ void BasicSfM::solve()
             // pt[2] = /*X coordinate of the estimated point */;
             /////////////////////////////////////////////////////////////////////////////////////////
 
+            // get 2d points
+            points0.emplace_back(observations_[cam_observation[new_cam_pose_idx][pt_idx] * 2],
+                                   observations_[cam_observation[new_cam_pose_idx][pt_idx] * 2 + 1]);
+            points1.emplace_back(observations_[cam_observation[cam_idx][pt_idx] * 2],
+                                   observations_[cam_observation[cam_idx][pt_idx] * 2 + 1]);
+
+            // define projection matrix of new cam pose
+            cv::Mat_<double> axis_angle = (cv::Mat_<double>(3,1) << cam0_data[0], cam0_data[1], cam0_data[2]);
+            cv::Mat_<double> t = (cv::Mat_<double>(3, 1) << cam0_data[3], cam0_data[4], cam0_data[5]);
+            cv::Mat_<double> R (3, 3);
+            cv::Rodrigues(axis_angle, R);
+            cv::hconcat(R, t, proj_mat0);
+
+            // define projection matrix of new cam pose
+            axis_angle = (cv::Mat_<double>(3,1) << cam1_data[0], cam1_data[1], cam1_data[2]);
+            t = (cv::Mat_<double>(3, 1) << cam1_data[3], cam1_data[4], cam1_data[5]);
+            cv::Rodrigues(axis_angle, R);
+            cv::hconcat(R, t, proj_mat1);
+
             cv::triangulatePoints(proj_mat0, proj_mat1, points0, points1, hpoints4D);
 
+            // check cheirality constraint
+            if(hpoints4D.at<double>(2,0)/hpoints4D.at<double>(3,0) > 0.0) {
+                n_new_pts++;
+                pts_optim_iter_[pt_idx] = 1;
+                double *pt = pointBlockPtr(pt_idx);
+                pt[0] = hpoints4D.at<double>(0,0)/hpoints4D.at<double>(3,0);
+                pt[1] = hpoints4D.at<double>(1,0)/hpoints4D.at<double>(3,0);
+                pt[2] = hpoints4D.at<double>(2,0)/hpoints4D.at<double>(3,0);
+            }
 
+            points0.clear();
+            points1.clear();
 
             /////////////////////////////////////////////////////////////////////////////////////////
           }
@@ -809,6 +872,16 @@ void BasicSfM::bundleAdjustmentIter( int new_cam_idx )
         // while the point position blocks have size (point_block_size_) of 3 elements.
         //////////////////////////////////////////////////////////////////////////////////
 
+        ceres::CostFunction* cost_function = ReprojectionError::Create(
+                observations_[i_obs * 2], observations_[i_obs * 2 + 1]
+                );
+
+        ceres::LossFunction* loss_function = new ceres::CauchyLoss(2 * max_reproj_err_);
+
+        double* camera_ptr = cameraBlockPtr(cam_pose_index_[i_obs]);
+        double* point_ptr = pointBlockPtr(point_index_[i_obs]);
+
+        problem.AddResidualBlock(cost_function, loss_function, camera_ptr, point_ptr);
 
 
 
