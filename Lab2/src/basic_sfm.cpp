@@ -22,7 +22,6 @@ struct ReprojectionError
   // WARNING: When dealing with the AutoDiffCostFunction template parameters,
   // pay attention to the order of the template parameters
   //////////////////////////////////////////////////////////////////////////////////////////
-  
   ReprojectionError(double observed_x, double observed_y)
     : observed_x(observed_x), observed_y(observed_y) {}
 
@@ -48,7 +47,7 @@ struct ReprojectionError
 
   static ceres::CostFunction* Create(const double observed_x,
                                      const double observed_y) {
-      return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 3, 3>(
+      return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 6, 3>(
                new ReprojectionError(observed_x, observed_y)));
   }
 
@@ -531,7 +530,9 @@ void BasicSfM::solve()
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
 
+    cout << "inizio task 3 ***********\n";
     double threshold = 0.001;
+    //double threshold = 1.0;
     cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, 0.999, threshold, inlier_mask_E);
     cv::Mat H = cv::findHomography(points0, points1, cv::RANSAC, threshold, inlier_mask_H);
 
@@ -548,22 +549,25 @@ void BasicSfM::solve()
     }
 
     cv::Mat R, t, rvec;
-    if(n_inliers_E < n_inliers_H)
-        continue;
+    if(n_inliers_E > n_inliers_H)
+    {
+      cv::recoverPose(E, points0, points1, intrinsics_matrix, R, t, inlier_mask_E);
+      //cv::Rodrigues(R, rvec);
 
-    cv::recoverPose(E, points0, points1, intrinsics_matrix, R, t, inlier_mask_E);
-    cv::Rodrigues(R, rvec);
+      cout << "righe" << t.rows << "\n";
+      cout << "colonne" << t.cols << "\n";
 
-    // TODO check sideward motion
-    double sideward_threshold = 0.6;
-    bool is_sideward = true;
-    if(std::abs(R.at<double>(1, 0)) < std::abs(R.at<double>(0, 0)) && std::abs(R.at<double>(2, 0)) < std::abs(R.at<double>(0, 0))) {
+      // TODO check sideward motion
+      double sideward_threshold = 0.6;
+      bool is_sideward = true;
+      if(std::abs(t.at<double>(1, 0)) < std::abs(t.at<double>(0, 0)) && std::abs(t.at<double>(2, 0)) < std::abs(t.at<double>(0, 0)))
+      {
         seed_found = true;
         R.copyTo(init_r_mat);
         t.copyTo(init_t_vec);
+      }
     }
-
-
+    cout << "fine task 3 ***********\n";
       /////////////////////////////////////////////////////////////////////////////////////////
   }
 
@@ -741,6 +745,9 @@ void BasicSfM::solve()
             // pt[2] = /*X coordinate of the estimated point */;
             /////////////////////////////////////////////////////////////////////////////////////////
 
+            cout << "inizio task 4*************\n";
+
+
             // get 2d points
             points0.emplace_back(observations_[cam_observation[new_cam_pose_idx][pt_idx] * 2],
                                    observations_[cam_observation[new_cam_pose_idx][pt_idx] * 2 + 1]);
@@ -775,6 +782,7 @@ void BasicSfM::solve()
             points0.clear();
             points1.clear();
 
+            cout << "fine task 4*************\n";
             /////////////////////////////////////////////////////////////////////////////////////////
           }
         }
@@ -872,9 +880,9 @@ void BasicSfM::bundleAdjustmentIter( int new_cam_idx )
         // while the point position blocks have size (point_block_size_) of 3 elements.
         //////////////////////////////////////////////////////////////////////////////////
 
-        ceres::CostFunction* cost_function = ReprojectionError::Create(
-                observations_[i_obs * 2], observations_[i_obs * 2 + 1]
-                );
+        ceres::CostFunction* cost_function = ReprojectionError::Create(observations_[i_obs * 2], observations_[i_obs * 2 + 1]);
+
+        
 
         ceres::LossFunction* loss_function = new ceres::CauchyLoss(2 * max_reproj_err_);
 
@@ -883,14 +891,12 @@ void BasicSfM::bundleAdjustmentIter( int new_cam_idx )
 
         problem.AddResidualBlock(cost_function, loss_function, camera_ptr, point_ptr);
 
-
-
-
         /////////////////////////////////////////////////////////////////////////////////////////
       }
     }
 
     Solve(options, &problem, &summary);
+
 
     // WARNING Here poor optimization ... :(
     // CHeck the cheirality constraint
