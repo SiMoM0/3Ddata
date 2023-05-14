@@ -530,7 +530,7 @@ void BasicSfM::solve()
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
 
-    double threshold = 2.0;
+    double threshold = 2.5;
     //double threshold = 1.0;
     cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, 0.999, threshold, inlier_mask_E);
     cv::Mat H = cv::findHomography(points0, points1, cv::RANSAC, threshold, inlier_mask_H);

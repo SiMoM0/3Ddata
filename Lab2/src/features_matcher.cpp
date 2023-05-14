@@ -77,28 +77,38 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
+      // all matches
+      std::vector<std::vector<cv::DMatch>> knn_matches;
+      const float ratio_thresh = 0.9f;
+
       // match descriptors between image i and j
       // TODO try using FLANN matcher
       //  there's an error regarding the format of input descriptors that should be Mat of CV_32F
       cv::Ptr<cv::BFMatcher> matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
-      matcher->match(descriptors_[i], descriptors_[j], matches);
+      matcher->knnMatch(descriptors_[i], descriptors_[j], knn_matches, 2);
 
       // extract points from matches
       std::vector<cv::Point2f> points_i, points_j;
-      for(auto m: matches) {
-          points_i.push_back(features_[i][m.queryIdx].pt);
-          points_j.push_back(features_[j][m.trainIdx].pt);
+      for(auto m: knn_matches) {
+          // filter match using Lowe's ratio test
+          if (m[0].distance < ratio_thresh * m[1].distance) {
+            // select the good match
+            matches.push_back(m[0]);
+            // add points
+            points_i.push_back(features_[i][m[0].queryIdx].pt);
+            points_j.push_back(features_[j][m[0].trainIdx].pt);
+          }
       }
 
       // extract essential and homography matrices
-      double threshold = 3.0;
+      double threshold = 1.0;
       cv::Mat inliers_mask_E, inliers_mask_H;
       cv::findEssentialMat(points_i, points_j, new_intrinsics_matrix_, cv::RANSAC, 0.999, threshold, inliers_mask_E);
       cv::findHomography(points_i, points_j, cv::RANSAC, threshold, inliers_mask_H);
 
       // find inliers matches
       for(int k=0; k<matches.size(); ++k) {
-          if(inliers_mask_E.at<uchar>(k) && inliers_mask_H.at<uchar>(k))
+          if(inliers_mask_E.at<uchar>(k) || inliers_mask_H.at<uchar>(k))
               inlier_matches.push_back(matches[k]);
       }
 
