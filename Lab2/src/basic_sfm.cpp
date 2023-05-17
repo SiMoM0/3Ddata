@@ -37,9 +37,11 @@ struct ReprojectionError
       p[1] += camera[4];
       p[2] += camera[5];
 
+      // 3D to 2D projection
       T xp = p[0] / p[2];
       T yp = p[1] / p[2];
 
+      // calculate residuals
       residuals[0] = xp - T(observed_x);
       residuals[1] = yp - T(observed_y);
       return true;
@@ -530,11 +532,12 @@ void BasicSfM::solve()
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
 
+    // compute E, H and extract inlier mask for both models
     double threshold = 2.5;
-    //double threshold = 1.0;
     cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, 0.999, threshold, inlier_mask_E);
     cv::Mat H = cv::findHomography(points0, points1, cv::RANSAC, threshold, inlier_mask_H);
 
+    // compute number of inliers for both models
     int n_inliers_E = 0;
     int n_inliers_H = 0;
     for(int r = 0; r < inlier_mask_E.rows; r++) {
@@ -550,11 +553,11 @@ void BasicSfM::solve()
     cv::Mat R, t;
     if(n_inliers_E > n_inliers_H)
     {
+      // obtain R and t
       cv::recoverPose(E, points0, points1, intrinsics_matrix, R, t, inlier_mask_E);
 
-      double x_threshold = 0.5;
-      double z_threshold = 0.5;
-      if(std::abs(t.at<double>(0)) > x_threshold && std::abs(t.at<double>(2)) < z_threshold)
+      // check if x is greater than z in the translation vector
+      if(std::abs(t.at<double>(0)) > std::abs(t.at<double>(2)))
       {
         seed_found = true;
         R.copyTo(init_r_mat);
@@ -752,7 +755,7 @@ void BasicSfM::solve()
             cv::Rodrigues(axis_angle, R);
             cv::hconcat(R, t, proj_mat0);
 
-            // define projection matrix of new cam pose
+            // define projection matrix of cam pose
             axis_angle = (cv::Mat_<double>(3,1) << cam1_data[0], cam1_data[1], cam1_data[2]);
             t = (cv::Mat_<double>(3, 1) << cam1_data[3], cam1_data[4], cam1_data[5]);
             cv::Rodrigues(axis_angle, R);
@@ -765,6 +768,8 @@ void BasicSfM::solve()
                 n_new_pts++;
                 pts_optim_iter_[pt_idx] = 1;
                 double *pt = pointBlockPtr(pt_idx);
+
+                // convert from homogenous coordinates
                 pt[0] = hpoints4D.at<double>(0,0)/hpoints4D.at<double>(3,0);
                 pt[1] = hpoints4D.at<double>(1,0)/hpoints4D.at<double>(3,0);
                 pt[2] = hpoints4D.at<double>(2,0)/hpoints4D.at<double>(3,0);
@@ -870,12 +875,13 @@ void BasicSfM::bundleAdjustmentIter( int new_cam_idx )
         // while the point position blocks have size (point_block_size_) of 3 elements.
         //////////////////////////////////////////////////////////////////////////////////
 
+        // set ReprojectionError as cost function
         ceres::CostFunction* cost_function = ReprojectionError::Create(observations_[i_obs * 2], observations_[i_obs * 2 + 1]);
 
-        
-
+        // Cauchy Loss function
         ceres::LossFunction* loss_function = new ceres::CauchyLoss(2 * max_reproj_err_);
 
+        // get camera parameters and points pointers
         double* camera_ptr = cameraBlockPtr(cam_pose_index_[i_obs]);
         double* point_ptr = pointBlockPtr(point_index_[i_obs]);
 

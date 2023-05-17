@@ -82,8 +82,6 @@ void FeatureMatcher::exhaustiveMatching()
       const float ratio_thresh = 0.9f;
 
       // match descriptors between image i and j
-      // TODO try using FLANN matcher
-      //  there's an error regarding the format of input descriptors that should be Mat of CV_32F
       cv::Ptr<cv::BFMatcher> matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
       matcher->knnMatch(descriptors_[i], descriptors_[j], knn_matches, 2);
 
@@ -100,7 +98,7 @@ void FeatureMatcher::exhaustiveMatching()
           }
       }
 
-      // extract essential and homography matrices
+      // extract inliers masks for E and H
       double threshold = 1.0;
       cv::Mat inliers_mask_E, inliers_mask_H;
       cv::findEssentialMat(points_i, points_j, new_intrinsics_matrix_, cv::RANSAC, 0.999, threshold, inliers_mask_E);
