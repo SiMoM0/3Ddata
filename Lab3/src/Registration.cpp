@@ -107,11 +107,12 @@ void Registration::execute_icp_registration(double threshold, int max_iteration,
   double prev_rmse = 0.0;
 
   for(int i=0; i<max_iteration; ++i) {
-      std::printf("Iteration [%d]\n", i);
       std::tuple<std::vector<size_t>, std::vector<size_t>, double> tuple = find_closest_point(threshold);
 
       // extract rmse of current iteration
       double rmse = std::get<2>(tuple);
+
+      std::printf("Iteration [%3d] | rmse = [%2.8f]\n", i, rmse);
 
       // check convergence
       if(std::abs(rmse - prev_rmse) < relative_rmse)
@@ -134,7 +135,7 @@ void Registration::execute_icp_registration(double threshold, int max_iteration,
 
       set_transformation(new_transformation);
 
-      std::cout << curr_transformation << std::endl;
+      // std::cout << curr_transformation << std::endl;
 
       source_for_icp_.Transform(curr_transformation);
   }
@@ -254,7 +255,7 @@ Eigen::Matrix4d Registration::get_lm_icp_registration(std::vector<size_t> source
   ceres::Problem problem;
   ceres::Solver::Summary summary;
   ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = false;
+  options.minimizer_progress_to_stdout = true;
   options.num_threads = 4;
   options.max_num_iterations = 100;
 
@@ -278,6 +279,22 @@ Eigen::Matrix4d Registration::get_lm_icp_registration(std::vector<size_t> source
 
   // solve problem
   Solve(options, &problem, &summary);
+
+  //retrieve the angles
+  Eigen::AngleAxisd roll {transformation_arr[0], Eigen::Vector3d::UnitX()};
+  Eigen::AngleAxisd pitch {transformation_arr[1], Eigen::Vector3d::UnitY()};
+  Eigen::AngleAxisd yaw {transformation_arr[2], Eigen::Vector3d::UnitZ()};
+
+  // compute rotation matrix
+  Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+  R = yaw * pitch * roll;
+
+  // extract translation vector
+  Eigen::Vector3d t {transformation_arr[3], transformation_arr[4], transformation_arr[5]};
+
+  // update the transformation matrix
+  transformation.block<3, 3>(0, 0) = R;
+  transformation.block<3, 1>(0, 3) = t;
 
   return transformation;
 }
