@@ -21,22 +21,23 @@ struct PointDistance
 
   template <typename T>
   bool operator()(const T* const transformation, T* residual) const {
-      // extract source data
+      // Extract source data
       Eigen::Matrix<T, 3, 1> source_point;
       source_point << T(source[0]), T(source[1]), T(source[2]);
+      
       // Extract the translation parameters
       T tx = transformation[3];
       T ty = transformation[4];
       T tz = transformation[5];
 
-      // Apply the rotation and translation to the source point
+      // Apply the AngleAxisRotatePoint function
       Eigen::Matrix<T, 3, 1> rotated_point;
       ceres::AngleAxisRotatePoint(transformation, source_point.data(), rotated_point.data());
       rotated_point[0] += tx;
       rotated_point[1] += ty;
       rotated_point[2] += tz;
 
-      // Compute the residual as the difference between the transformed source point and the target point
+      // Compute the residual
       residual[0] = rotated_point.x() - target.x();
       residual[1] = rotated_point.y() - target.y();
       residual[2] = rotated_point.z() - target.z();
@@ -130,12 +131,11 @@ void Registration::execute_icp_registration(double threshold, int max_iteration,
           curr_transformation = get_lm_icp_registration(std::get<0>(tuple), std::get<1>(tuple));
       }
 
+      // compute new transformation
       new_transformation.block<3, 3>(0, 0) = curr_transformation.block<3, 3>(0, 0) * prev_transformation.block<3, 3>(0, 0);
       new_transformation.block<3, 1>(0, 3) = curr_transformation.block<3, 3>(0, 0) * prev_transformation.block<3, 1>(0, 3) + curr_transformation.block<3, 1>(0, 3);
 
       set_transformation(new_transformation);
-
-      // std::cout << curr_transformation << std::endl;
 
       source_for_icp_.Transform(curr_transformation);
   }
