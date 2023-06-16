@@ -274,7 +274,7 @@ Eigen::Matrix4d Registration::get_lm_icp_registration(std::vector<size_t> source
     target_point = target_.points_[target_indices[i]];
 
     ceres::CostFunction* cost_function = PointDistance::Create(source_point, target_point);
-    problem.AddResidualBlock(cost_function, NULL, transformation_arr.data());
+    problem.AddResidualBlock(cost_function, nullptr, transformation_arr.data());
   }
 
   // solve problem
