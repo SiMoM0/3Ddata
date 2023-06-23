@@ -19,3 +19,9 @@ Files: [Lab 2](https://github.com/SiMoM0/3Ddata/tree/master/Lab2)
 Given a source and a target point cloud roughly aligned, find the fine alignment transformation of the source to the target cloud.
 
 Files: [Lab 3](https://github.com/SiMoM0/3Ddata/tree/master/Lab3)
+
+### Lab 4 - Deep 3D Descriptors
+
+Design a modified PointNet architecture that is able to extract 3D descriptors to be used for matching.
+
+Files: [Lab 4](https://github.com/SiMoM0/3Ddata/tree/master/Lab4)
